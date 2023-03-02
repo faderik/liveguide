@@ -1,4 +1,4 @@
-package com.example.webrtc
+package com.faderik.liveguide
 
 import io.flutter.embedding.android.FlutterActivity
 

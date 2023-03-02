@@ -3,7 +3,8 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:webrtc/signaling.dart';
+import 'package:liveguide/firebase_options.dart';
+import 'package:liveguide/signaling.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,10 +18,10 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter WebRTC',
+      title: 'Live Guide',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.grey,
       ),
       home: const MyHomePage(),
     );
@@ -53,8 +54,7 @@ class _MyHomePageState extends State<MyHomePage> {
 
     super.initState();
 
-    var app = Firebase.initializeApp().whenComplete(() {
-      print("completed");
+    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).whenComplete(() {
       setState(() {});
     });
   }
@@ -70,7 +70,7 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(child: Text("WebRTC")),
+        title: const Center(child: Text("Live Guide")),
       ),
       body: Column(
         children: [

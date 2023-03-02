@@ -8,9 +8,9 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:11996658569:android:a679bed5327ae39dfcbf58",
+        "mobilesdk_app_id": "1:11996658569:android:55e127c2f2d2489cfcbf58",
         "android_client_info": {
-          "package_name": "com.example.webrtc"
+          "package_name": "com.faderik.liveguide"
         }
       },
       "oauth_client": [
