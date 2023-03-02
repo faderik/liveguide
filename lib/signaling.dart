@@ -8,12 +8,12 @@ typedef void StreamStateCallback(MediaStream stream);
 class Signaling {
   Map<String, dynamic> configuration = {
     'iceServers': [
-      {
-        'urls': [
-          'stun:stun1.l.google.com:19302',
-          'stun:stun2.l.google.com:19302'
-        ]
-      }
+      // {
+      //   'urls': [
+      //     'stun:stun1.l.google.com:19302',
+      //     'stun:stun2.l.google.com:19302'
+      //   ]
+      // }
     ]
   };
 
@@ -74,8 +74,7 @@ class Signaling {
       print('Got updated room: ${snapshot.data()}');
 
       Map<String, dynamic> data = snapshot.data() as Map<String, dynamic>;
-      if (peerConnection?.getRemoteDescription() != null &&
-          data['answer'] != null) {
+      if (peerConnection?.getRemoteDescription() != null && data['answer'] != null) {
         var answer = RTCSessionDescription(
           data['answer']['sdp'],
           data['answer']['type'],
@@ -185,8 +184,7 @@ class Signaling {
     RTCVideoRenderer localVideo,
     RTCVideoRenderer remoteVideo,
   ) async {
-    var stream = await navigator.mediaDevices
-        .getUserMedia({'video': true, 'audio': false});
+    var stream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': false});
 
     localVideo.srcObject = stream;
     localStream = stream;
