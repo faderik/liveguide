@@ -1,13 +1,15 @@
 // ignore_for_file: prefer_final_fields, library_private_types_in_public_api
 
-import 'package:firebase_core/firebase_core.dart';
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
-import 'package:liveguide/firebase_options.dart';
 import 'package:liveguide/signaling.dart';
+import 'package:wakelock/wakelock.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Wakelock.enable();
   runApp(const MyApp());
 }
 
@@ -41,6 +43,7 @@ class _MyHomePageState extends State<MyHomePage> {
   RTCVideoRenderer _remoteRenderer = RTCVideoRenderer();
   String? roomId;
   TextEditingController textEditingController = TextEditingController(text: '');
+  bool isBroadcaster = false;
 
   @override
   void initState() {
@@ -48,21 +51,24 @@ class _MyHomePageState extends State<MyHomePage> {
     _remoteRenderer.initialize();
 
     signaling.onAddRemoteStream = ((stream) {
+      log("ON ADD REMOTE STREAM");
+
       _remoteRenderer.srcObject = stream;
       setState(() {});
     });
 
     super.initState();
 
-    Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).whenComplete(() {
-      setState(() {});
-    });
+    // Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform).whenComplete(() {
+    //   setState(() {});
+    // });
   }
 
   @override
   void dispose() {
     _localRenderer.dispose();
     _remoteRenderer.dispose();
+    signaling.close();
     super.dispose();
   }
 
@@ -77,28 +83,21 @@ class _MyHomePageState extends State<MyHomePage> {
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(8.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: RTCVideoView(
-                          _localRenderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                          mirror: true,
+                  child: isBroadcaster
+                      ? Expanded(
+                          child: RTCVideoView(
+                            _localRenderer,
+                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                            mirror: true,
+                          ),
+                        )
+                      : Expanded(
+                          child: RTCVideoView(
+                            _remoteRenderer,
+                            objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                            mirror: true,
+                          ),
                         ),
-                      ),
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Expanded(
-                        child: RTCVideoView(
-                          _remoteRenderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                          mirror: true,
-                        ),
-                      ),
-                    ],
-                  ),
                 ),
               ),
               Column(
@@ -175,8 +174,8 @@ class _MyHomePageState extends State<MyHomePage> {
                                 ),
                                 onPressed: () async {
                                   await signaling.openUserMedia(_localRenderer, _remoteRenderer);
-                                  roomId = await signaling.createRoom(_remoteRenderer);
-                                  textEditingController.text = roomId!;
+                                  await signaling.createRoom(_remoteRenderer);
+                                  isBroadcaster = true;
                                   setState(() {});
                                 },
                                 child: const Text(

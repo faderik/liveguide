@@ -35,6 +35,18 @@
             "deviceId": "emulator-5554"
         },
         {
+            "name": "Tablet",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "XBRYD22401603851"
+        },
+        {
+            "name": "Samsung",
+            "request": "launch",
+            "type": "dart",
+            "deviceId": "RR8R3096AAA"
+        },
+        {
             "name": "Chrome",
             "request": "launch",
             "type": "dart",
@@ -46,7 +58,8 @@
             "name": "All Devices",
             "configurations": [
                 "RedmiNote8Pro",
-                "Chrome",
+                "Tablet",
+                "Samsung"
             ],
         }
     ]
