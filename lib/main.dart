@@ -69,85 +69,129 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Center(child: Text("Live Guide")),
-      ),
-      body: Column(
-        children: [
-          const SizedBox(height: 25),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+      body: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
             children: [
-              ElevatedButton(
-                onPressed: () {
-                  signaling.openUserMedia(_localRenderer, _remoteRenderer);
-                },
-                child: const Icon(Icons.video_call),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: RTCVideoView(
+                          _localRenderer,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                          mirror: true,
+                        ),
+                      ),
+                      const SizedBox(
+                        height: 10,
+                      ),
+                      Expanded(
+                        child: RTCVideoView(
+                          _remoteRenderer,
+                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                          mirror: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              const SizedBox(
-                width: 8,
-              ),
-              ElevatedButton(
-                onPressed: () async {
-                  roomId = await signaling.createRoom(_remoteRenderer);
-                  textEditingController.text = roomId!;
-                  setState(() {});
-                },
-                child: const Icon(Icons.add),
-              ),
-              const SizedBox(
-                width: 8,
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  // Add roomId
-                  signaling.joinRoom(
-                    textEditingController.text,
-                    _remoteRenderer,
-                  );
-                },
-                child: const Text("Join"),
-              ),
-              const SizedBox(
-                width: 8,
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  signaling.hangUp(_localRenderer);
-                },
-                child: const Text("Hangup"),
-              )
-            ],
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Column(
                 children: [
-                  Expanded(child: RTCVideoView(_localRenderer, mirror: true)),
-                  Expanded(child: RTCVideoView(_remoteRenderer)),
+                  TextFormField(
+                    controller: textEditingController,
+                    decoration: const InputDecoration(
+                      contentPadding: EdgeInsets.all(10),
+                      focusedBorder: UnderlineInputBorder(
+                        borderSide: BorderSide(color: Colors.black),
+                        borderRadius: BorderRadius.all(Radius.circular(5)),
+                      ),
+                      hintText: "Enter Room ID",
+                      hintStyle: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 14,
+                      ),
+                    ),
+                    textAlign: TextAlign.center,
+                    cursorColor: Colors.black,
+                  ),
+                  signaling.isConnectionActive()
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ButtonStyle(
+                              backgroundColor: MaterialStateProperty.all(Colors.red[300]),
+                            ),
+                            onPressed: () async {
+                              await signaling.hangUp(_localRenderer);
+                              textEditingController.text = '';
+                              _localRenderer.srcObject = null;
+                              _remoteRenderer.srcObject = null;
+                              setState(() {
+                                roomId = null;
+                              });
+                            },
+                            child: const Text("Hangup"),
+                          ),
+                        )
+                      : Column(
+                          children: [
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  backgroundColor: MaterialStateProperty.all(Colors.green[200]),
+                                ),
+                                onPressed: () async {
+                                  // await signaling.openUserMedia(_localRenderer, _remoteRenderer);
+                                  signaling.joinRoom(
+                                    textEditingController.text,
+                                    _remoteRenderer,
+                                  );
+                                },
+                                child: const Text(
+                                  "Join Room",
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            ),
+                            Container(
+                              margin: const EdgeInsets.only(top: 8, bottom: 8),
+                              child: const Text(
+                                "---  Or  ---",
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  backgroundColor: MaterialStateProperty.all(Colors.green[800]),
+                                ),
+                                onPressed: () async {
+                                  await signaling.openUserMedia(_localRenderer, _remoteRenderer);
+                                  roomId = await signaling.createRoom(_remoteRenderer);
+                                  textEditingController.text = roomId!;
+                                  setState(() {});
+                                },
+                                child: const Text(
+                                  "Create Room",
+                                  style: TextStyle(color: Colors.black),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                 ],
               ),
-            ),
+            ],
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Text("Join the following Room: "),
-                Flexible(
-                  child: TextFormField(
-                    controller: textEditingController,
-                  ),
-                )
-              ],
-            ),
-          ),
-          const SizedBox(height: 8)
-        ],
+        ),
       ),
     );
   }

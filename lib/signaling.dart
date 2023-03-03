@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -109,7 +111,7 @@ class Signaling {
 
   Future<void> joinRoom(String roomId, RTCVideoRenderer remoteVideo) async {
     FirebaseFirestore db = FirebaseFirestore.instance;
-    DocumentReference roomRef = db.collection('rooms').doc('$roomId');
+    DocumentReference roomRef = db.collection('rooms').doc(roomId);
     var roomSnapshot = await roomRef.get();
     print('Got room ${roomSnapshot.exists}');
 
@@ -217,6 +219,13 @@ class Signaling {
 
     localStream!.dispose();
     remoteStream?.dispose();
+
+    remoteStream = null;
+    peerConnection = null;
+  }
+
+  bool isConnectionActive() {
+    return remoteStream != null || peerConnection != null;
   }
 
   void registerPeerConnectionListeners() {
