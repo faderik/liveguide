@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-typedef SdpCallback = void Function(String sdp);
+typedef SdpCallback = Future Function(String sdp);
 
 class Client {
   Client({
@@ -32,7 +32,7 @@ class Client {
     await socket!.flush();
 
     socket!.listen(
-      (Uint8List data) {
+      (Uint8List data) async {
         if (data.isNotEmpty) {
           String rawData = String.fromCharCodes(data);
           int idx = rawData.indexOf(":");
@@ -40,7 +40,7 @@ class Client {
           String sdp = rawData.substring(idx + 1).trim();
 
           if (code == 'server') {
-            onSdpReceived!(sdp);
+            await onSdpReceived!(sdp);
           }
         }
       },

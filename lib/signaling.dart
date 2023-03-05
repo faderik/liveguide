@@ -55,7 +55,11 @@ class Signaling {
       await handleNegotiationNeededEventServer();
     };
 
-    localStream?.getTracks().forEach((track) {
+    localStream?.getAudioTracks().forEach((track) {
+      log("SERVER: ADDING TRACK: ${track.toString()}");
+      // Disable audio output
+      // track.applyConstraints({"deviceId": null});
+      // track.enabled = false;
       peerConnection?.addTrack(track, localStream!);
     });
   }
@@ -77,8 +81,8 @@ class Signaling {
       port: 4040,
     );
     await client!.connect();
-    client!.onSdpReceived = ((sdp) {
-      setRdpClient(sdp);
+    client!.onSdpReceived = ((sdp) async {
+      await setRdpClient(sdp);
     });
 
     peerConnection = await createPeerConnection(configuration);
@@ -99,7 +103,7 @@ class Signaling {
     };
 
     peerConnection!.addTransceiver(
-      kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
+      kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
       init: RTCRtpTransceiverInit(
         direction: TransceiverDirection.RecvOnly,
       ),
@@ -114,29 +118,31 @@ class Signaling {
     await client!.getSdpFromServer(payload!.sdp!);
   }
 
-  setRdpClient(String sdp) {
+  setRdpClient(String sdp) async {
     RTCSessionDescription desc = RTCSessionDescription('$sdp\n', 'answer');
     log("CLIENT: FROM WS SERVER: $sdp");
-    peerConnection!.setRemoteDescription(desc);
+    await peerConnection!.setRemoteDescription(desc);
   }
 
   Future<void> openUserMedia(
     RTCVideoRenderer localVideo,
     RTCVideoRenderer remoteVideo,
   ) async {
-    var stream = await navigator.mediaDevices.getUserMedia({'video': true, 'audio': false});
+    var stream = await navigator.mediaDevices.getUserMedia({'video': false, 'audio': true});
 
-    localVideo.srcObject = stream;
+    // localVideo.srcObject = stream;
     localStream = stream;
 
-    remoteVideo.srcObject = await createLocalMediaStream('key');
+    // remoteVideo.srcObject = await createLocalMediaStream('key');
   }
 
   Future<void> hangUp(RTCVideoRenderer localVideo) async {
     if (isBroadcaster) {
-      List<MediaStreamTrack> tracks = localVideo.srcObject!.getTracks();
-      for (var track in tracks) {
-        track.stop();
+      if (localVideo.srcObject != null) {
+        List<MediaStreamTrack> tracks = localVideo.srcObject!.getTracks();
+        for (var track in tracks) {
+          track.stop();
+        }
       }
     }
 

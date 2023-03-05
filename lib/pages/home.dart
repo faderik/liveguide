@@ -25,10 +25,11 @@ class MyHomePageState extends State<MyHomePage> {
 
   // String mode = 'ap';
   String mode = 'wlan';
+  bool audioOnly = true;
 
   @override
   void initState() {
-    _localRenderer.initialize();
+    // _localRenderer.initialize();
     _remoteRenderer.initialize();
 
     signaling.onAddRemoteStream = ((stream) {
@@ -50,9 +51,10 @@ class MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
+    signaling.hangUp(_localRenderer);
+    signaling.close();
     _localRenderer.dispose();
     _remoteRenderer.dispose();
-    signaling.close();
     ap!.stop();
     super.dispose();
   }
@@ -143,16 +145,20 @@ class MyHomePageState extends State<MyHomePage> {
                 child: Container(
                   padding: const EdgeInsets.only(top: 10, bottom: 10),
                   child: isBroadcaster
-                      ? RTCVideoView(
-                          _localRenderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                          mirror: true,
-                        )
-                      : RTCVideoView(
-                          _remoteRenderer,
-                          objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
-                          mirror: true,
-                        ),
+                      ? (audioOnly
+                          ? const Text("Broadcasting audio only")
+                          : RTCVideoView(
+                              _localRenderer,
+                              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                              mirror: true,
+                            ))
+                      : (audioOnly
+                          ? const Text("Receiving audio only")
+                          : RTCVideoView(
+                              _remoteRenderer,
+                              objectFit: RTCVideoViewObjectFit.RTCVideoViewObjectFitCover,
+                              mirror: true,
+                            )),
                 ),
               ),
               Column(
