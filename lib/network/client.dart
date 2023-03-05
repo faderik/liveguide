@@ -3,7 +3,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
-typedef void SdpCallback(String sdp);
+typedef SdpCallback = void Function(String sdp);
 
 class Client {
   Client({
@@ -29,6 +29,8 @@ class Client {
 
   getSdpFromServer(String sdp) async {
     socket!.write('consumer:$sdp\n');
+    await socket!.flush();
+
     socket!.listen(
       (Uint8List data) {
         if (data.isNotEmpty) {
@@ -43,11 +45,6 @@ class Client {
         }
       },
     );
-  }
-
-  write(String message) {
-    //Connect standard in to the socket
-    socket!.write('$message\n');
   }
 
   disconnect() {

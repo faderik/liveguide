@@ -58,8 +58,7 @@
             "name": "All Devices",
             "configurations": [
                 "RedmiNote8Pro",
-                "Tablet",
-                "Samsung"
+                "Tablet"
             ],
         }
     ]

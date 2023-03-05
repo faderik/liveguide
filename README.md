@@ -9,7 +9,7 @@ Liveguide Audio streams 🕋. Responsive Application for Muthawif to broadcast t
 ## Requirement
 - minSdkVersion 21
 - targetSdkVersion 30
-- compileSdkVersion 31
+- compileSdkVersion 33
 - ext.kotlin_version = '1.6.10'
 - classpath 'com.google.gms:google-services:4.3.13'
 

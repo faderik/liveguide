@@ -10,12 +10,9 @@ class Server {
 
   Map<String, dynamic> configuration = {
     'iceServers': [
-      // {
-      //   'urls': [
-      //     'stun:stun1.l.google.com:19302',
-      //     'stun:stun2.l.google.com:19302'
-      //   ]
-      // }
+      {
+        'urls': ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+      }
     ]
   };
 
@@ -42,12 +39,6 @@ class Server {
     running = false;
   }
 
-  broadCast(String message) {
-    for (Socket socket in sockets) {
-      socket.write('$message\n');
-    }
-  }
-
   onRequest(Socket socket) {
     if (!sockets.contains(socket)) {
       sockets.add(socket);
@@ -62,7 +53,9 @@ class Server {
 
         if (reqCode == 'consumer') {
           String sdpFromServer = await setConsumer(sdp);
+          log("SERVER: TO CLIENT: $sdpFromServer");
           socket.write('server:$sdpFromServer\n');
+          await socket.flush();
         }
       }
     });

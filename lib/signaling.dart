@@ -1,23 +1,20 @@
 // ignore_for_file: avoid_print
 
-import 'dart:convert';
+import 'dart:developer';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 import 'package:liveguide/network/client.dart';
 import 'package:liveguide/network/server.dart';
 
 typedef StreamStateCallback = void Function(MediaStream stream);
+typedef ConnectionStateCallback = void Function(RTCPeerConnectionState stream);
 
 class Signaling {
   Map<String, dynamic> configuration = {
     'iceServers': [
-      // {
-      //   'urls': [
-      //     'stun:stun1.l.google.com:19302',
-      //     'stun:stun2.l.google.com:19302'
-      //   ]
-      // }
+      {
+        'urls': ['stun:stun1.l.google.com:19302', 'stun:stun2.l.google.com:19302']
+      }
     ]
   };
 
@@ -27,20 +24,34 @@ class Signaling {
   String? roomId;
   String? currentRoomText;
   StreamStateCallback? onAddRemoteStream;
+  ConnectionStateCallback? onConnectionState;
   Server? server;
   Client? client;
+  bool isBroadcaster = false;
+  String connectionStatus = '-';
 
   void close() {
     server?.stop();
     client?.disconnect();
   }
 
-  Future createRoom(RTCVideoRenderer remoteRenderer) async {
+  Future createRoom() async {
+    isBroadcaster = true;
     server = Server();
-    server!.start();
+    if (!server!.running) {
+      server!.start();
+    }
 
     peerConnection = await createPeerConnection(configuration);
+    peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+      onConnectionState!(state);
+    };
+    peerConnection!.onSignalingState = (RTCSignalingState state) {
+      log('CLIENT: ON SIGNALING STATE: $state.toString()');
+    };
     peerConnection!.onRenegotiationNeeded = () async {
+      log('ON RE-NEGOTIATION : SERVER');
+
       await handleNegotiationNeededEventServer();
     };
 
@@ -60,9 +71,9 @@ class Signaling {
     await peerConnection!.setRemoteDescription(desc);
   }
 
-  Future<void> joinRoom(String roomId, RTCVideoRenderer remoteVideo) async {
+  Future<void> joinRoom(String serverIp, RTCVideoRenderer remoteRenderer) async {
     client = Client(
-      hostname: '192.168.1.5',
+      hostname: serverIp,
       port: 4040,
     );
     await client!.connect();
@@ -71,11 +82,19 @@ class Signaling {
     });
 
     peerConnection = await createPeerConnection(configuration);
+    peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
+      onConnectionState!(state);
+    };
+    peerConnection!.onSignalingState = (RTCSignalingState state) {
+      log('CLIENT: ON SIGNALING STATE: $state');
+    };
+    remoteRenderer.srcObject = await createLocalMediaStream('key');
     peerConnection!.onTrack = (RTCTrackEvent event) {
       remoteStream = event.streams[0];
       onAddRemoteStream!(remoteStream!);
     };
     peerConnection!.onRenegotiationNeeded = () async {
+      log('ON RE-NEGOTIATION : CLIENT');
       await handleNegotiationNeededEventClient();
     };
 
@@ -83,7 +102,6 @@ class Signaling {
       kind: RTCRtpMediaType.RTCRtpMediaTypeVideo,
       init: RTCRtpTransceiverInit(
         direction: TransceiverDirection.RecvOnly,
-        streams: [await createLocalMediaStream('key')],
       ),
     );
   }
@@ -98,6 +116,7 @@ class Signaling {
 
   setRdpClient(String sdp) {
     RTCSessionDescription desc = RTCSessionDescription('$sdp\n', 'answer');
+    log("CLIENT: FROM WS SERVER: $sdp");
     peerConnection!.setRemoteDescription(desc);
   }
 
@@ -114,33 +133,26 @@ class Signaling {
   }
 
   Future<void> hangUp(RTCVideoRenderer localVideo) async {
-    List<MediaStreamTrack> tracks = localVideo.srcObject!.getTracks();
-    tracks.forEach((track) {
-      track.stop();
-    });
+    if (isBroadcaster) {
+      List<MediaStreamTrack> tracks = localVideo.srcObject!.getTracks();
+      for (var track in tracks) {
+        track.stop();
+      }
+    }
 
     if (remoteStream != null) {
       remoteStream!.getTracks().forEach((track) => track.stop());
     }
     if (peerConnection != null) peerConnection!.close();
 
-    if (roomId != null) {
-      var db = FirebaseFirestore.instance;
-      var roomRef = db.collection('rooms').doc(roomId);
-      var calleeCandidates = await roomRef.collection('calleeCandidates').get();
-      calleeCandidates.docs.forEach((document) => document.reference.delete());
-
-      var callerCandidates = await roomRef.collection('callerCandidates').get();
-      callerCandidates.docs.forEach((document) => document.reference.delete());
-
-      await roomRef.delete();
-    }
-
-    localStream!.dispose();
+    localStream?.dispose();
     remoteStream?.dispose();
 
     remoteStream = null;
     peerConnection = null;
+    server?.stop();
+    client?.disconnect();
+    isBroadcaster = false;
   }
 
   bool isConnectionActive() {
