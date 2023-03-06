@@ -8,6 +8,7 @@ import 'package:liveguide/network/server.dart';
 
 typedef StreamStateCallback = void Function(MediaStream stream);
 typedef ConnectionStateCallback = void Function(RTCPeerConnectionState stream);
+typedef ErrorCallback = void Function(String error);
 
 class Signaling {
   Map<String, dynamic> configuration = {
@@ -29,6 +30,7 @@ class Signaling {
   Client? client;
   bool isBroadcaster = false;
   String connectionStatus = '-';
+  ErrorCallback? onError;
 
   void close() {
     server?.stop();
@@ -38,6 +40,9 @@ class Signaling {
   Future createRoom() async {
     isBroadcaster = true;
     server = Server();
+    server!.onError = (String error) {
+      onError!(error);
+    };
     if (!server!.running) {
       server!.start();
     }
@@ -82,7 +87,7 @@ class Signaling {
     );
     await client!.connect();
     client!.onSdpReceived = ((sdp) async {
-      await setRdpClient(sdp);
+      await setSdpClient(sdp);
     });
 
     peerConnection = await createPeerConnection(configuration);
@@ -118,10 +123,14 @@ class Signaling {
     await client!.getSdpFromServer(payload!.sdp!);
   }
 
-  setRdpClient(String sdp) async {
-    RTCSessionDescription desc = RTCSessionDescription('$sdp\n', 'answer');
-    log("CLIENT: FROM WS SERVER: $sdp");
-    await peerConnection!.setRemoteDescription(desc);
+  setSdpClient(String sdp) async {
+    try {
+      RTCSessionDescription desc = RTCSessionDescription('$sdp\n', 'answer');
+      log("CLIENT: FROM WS SERVER: $sdp");
+      await peerConnection!.setRemoteDescription(desc);
+    } catch (e) {
+      onError!(e.toString());
+    }
   }
 
   Future<void> openUserMedia(RTCVideoRenderer localVideo, {bool audioOnly = false}) async {

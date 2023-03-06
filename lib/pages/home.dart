@@ -47,6 +47,10 @@ class MyHomePageState extends State<MyHomePage> {
       setState(() {});
     });
 
+    signaling.onError = ((error) {
+      showMsgDialog(error);
+    });
+
     super.initState();
   }
 
@@ -63,30 +67,34 @@ class MyHomePageState extends State<MyHomePage> {
   Future createRoom() async {
     isBroadcaster = true;
 
-    if (mode == 'ap') {
-      if (!await ap!.start()) {
-        showMsgDialog("Failed to start Access Point");
-        return;
+    try {
+      if (mode == 'ap') {
+        if (!await ap!.start()) {
+          showMsgDialog("Failed to start Access Point");
+          return;
+        }
+
+        dynamic apInfo = await ap!.getAPInfo();
+        ssidController.text = apInfo!['ssid'];
+        pwdController.text = apInfo!['password'];
       }
 
-      dynamic apInfo = await ap!.getAPInfo();
-      ssidController.text = apInfo!['ssid'];
-      pwdController.text = apInfo!['password'];
+      String ip = await ap!.getServerIP(mode);
+      if (ip == '') {
+        showMsgDialog("Failed to get server IP");
+        return;
+      }
+      ipController.text = ip;
+
+      await ap!.printIP();
+
+      await signaling.openUserMedia(_localRenderer, audioOnly: audioOnly);
+      await signaling.createRoom();
+
+      setState(() {});
+    } catch (e) {
+      showMsgDialog(e.toString());
     }
-
-    String ip = await ap!.getServerIP(mode);
-    if (ip == '') {
-      showMsgDialog("Failed to get server IP");
-      return;
-    }
-    ipController.text = ip;
-
-    await ap!.printIP();
-
-    await signaling.openUserMedia(_localRenderer, audioOnly: audioOnly);
-    await signaling.createRoom();
-
-    setState(() {});
   }
 
   Future joinRoom() async {
@@ -100,8 +108,12 @@ class MyHomePageState extends State<MyHomePage> {
       return;
     }
 
-    signaling.joinRoom(ipController.text, _remoteRenderer, audioOnly: audioOnly);
-    setState(() {});
+    try {
+      signaling.joinRoom(ipController.text, _remoteRenderer, audioOnly: audioOnly);
+      setState(() {});
+    } catch (e) {
+      showMsgDialog(e.toString());
+    }
   }
 
   Future hangUp() async {

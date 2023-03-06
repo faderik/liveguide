@@ -5,6 +5,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_webrtc/flutter_webrtc.dart';
 
+typedef ErrorCallback = Function(String error);
+
 class Server {
   Server();
 
@@ -19,6 +21,7 @@ class Server {
   ServerSocket? server;
   bool running = false;
   List<Socket> sockets = [];
+  ErrorCallback? onError;
 
   MediaStream? senderStream;
   RTCPeerConnection? peerConnection;
@@ -29,7 +32,7 @@ class Server {
       running = true;
       server!.listen(onRequest);
     }, onError: (e) {
-      log(e);
+      onError!(e.toString());
     });
   }
 
@@ -48,16 +51,20 @@ class Server {
 
     socket.listen((Uint8List data) async {
       if (data.isNotEmpty) {
-        String rawData = String.fromCharCodes(data);
-        int idx = rawData.indexOf(":");
-        String reqCode = rawData.substring(0, idx).trim();
-        String sdp = rawData.substring(idx + 1).trim();
+        try {
+          String rawData = String.fromCharCodes(data);
+          int idx = rawData.indexOf(":");
+          String reqCode = rawData.substring(0, idx).trim();
+          String sdp = rawData.substring(idx + 1).trim();
 
-        if (reqCode == 'consumer') {
-          String sdpFromServer = await setConsumer(sdp);
-          log("SERVER: TO CLIENT: $sdpFromServer");
-          socket.write('server:$sdpFromServer\n');
-          await socket.flush();
+          if (reqCode == 'consumer') {
+            String sdpFromServer = await setConsumer(sdp);
+            log("SERVER: TO CLIENT: $sdpFromServer");
+            socket.write('server:$sdpFromServer\n');
+            await socket.flush();
+          }
+        } catch (e) {
+          onError!(e.toString());
         }
       }
     });
