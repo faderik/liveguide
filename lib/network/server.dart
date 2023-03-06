@@ -35,6 +35,8 @@ class Server {
 
   stop() async {
     await server?.close();
+    senderStream?.dispose();
+    peerConnection?.close();
     server = null;
     running = false;
   }

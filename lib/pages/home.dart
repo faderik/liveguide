@@ -25,11 +25,12 @@ class MyHomePageState extends State<MyHomePage> {
 
   // String mode = 'ap';
   String mode = 'wlan';
-  bool audioOnly = true;
+  bool audioOnly = false;
+  // bool audioOnly = true;
 
   @override
   void initState() {
-    // _localRenderer.initialize();
+    _localRenderer.initialize();
     _remoteRenderer.initialize();
 
     signaling.onAddRemoteStream = ((stream) {
@@ -51,7 +52,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   @override
   void dispose() {
-    signaling.hangUp(_localRenderer);
+    signaling.hangUp(_localRenderer, _remoteRenderer);
     signaling.close();
     _localRenderer.dispose();
     _remoteRenderer.dispose();
@@ -82,7 +83,7 @@ class MyHomePageState extends State<MyHomePage> {
 
     await ap!.printIP();
 
-    await signaling.openUserMedia(_localRenderer, _remoteRenderer);
+    await signaling.openUserMedia(_localRenderer, audioOnly: audioOnly);
     await signaling.createRoom();
 
     setState(() {});
@@ -94,11 +95,17 @@ class MyHomePageState extends State<MyHomePage> {
     //   return;
     // }
 
-    signaling.joinRoom(ipController.text, _remoteRenderer);
+    if (ipController.text == '') {
+      showMsgDialog("Please enter IP address");
+      return;
+    }
+
+    signaling.joinRoom(ipController.text, _remoteRenderer, audioOnly: audioOnly);
+    setState(() {});
   }
 
   Future hangUp() async {
-    await signaling.hangUp(_localRenderer);
+    await signaling.hangUp(_localRenderer, _remoteRenderer);
     await ap!.stop();
 
     ipController.text = '';
@@ -107,6 +114,21 @@ class MyHomePageState extends State<MyHomePage> {
     isBroadcaster = false;
 
     setState(() {});
+  }
+
+  Future reConnect() async {
+    bool isBroadcasterTemp = isBroadcaster;
+    String ip = ipController.text;
+
+    await hangUp();
+    ipController.text = ip;
+    setState(() {});
+
+    if (isBroadcasterTemp) {
+      await createRoom();
+    } else {
+      await joinRoom();
+    }
   }
 
   openWifiSetting() async {
@@ -225,17 +247,30 @@ class MyHomePageState extends State<MyHomePage> {
                     cursorColor: Colors.black,
                   ),
                   signaling.isConnectionActive()
-                      ? SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            style: ButtonStyle(
-                              backgroundColor: MaterialStateProperty.all(Colors.red[300]),
+                      ? Row(
+                          children: [
+                            ElevatedButton(
+                              style: ButtonStyle(
+                                backgroundColor: MaterialStateProperty.all(Colors.green[200]),
+                              ),
+                              onPressed: () async {
+                                await reConnect();
+                              },
+                              child: const Icon(Icons.replay_outlined),
                             ),
-                            onPressed: () async {
-                              await hangUp();
-                            },
-                            child: const Text("Hangup"),
-                          ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: ElevatedButton(
+                                style: ButtonStyle(
+                                  backgroundColor: MaterialStateProperty.all(Colors.red[300]),
+                                ),
+                                onPressed: () async {
+                                  await hangUp();
+                                },
+                                child: const Text("Hangup"),
+                              ),
+                            ),
+                          ],
                         )
                       : Column(
                           children: [
@@ -249,10 +284,7 @@ class MyHomePageState extends State<MyHomePage> {
                                     onPressed: () async {
                                       await openWifiSetting();
                                     },
-                                    child: const Text(
-                                      "Open Wifi Setting",
-                                      style: TextStyle(color: Colors.black),
-                                    ),
+                                    child: const Text("Open Wifi Setting"),
                                   ),
                                 ),
                                 const SizedBox(width: 5),

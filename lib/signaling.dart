@@ -55,7 +55,7 @@ class Signaling {
       await handleNegotiationNeededEventServer();
     };
 
-    localStream?.getAudioTracks().forEach((track) {
+    localStream?.getTracks().forEach((track) {
       log("SERVER: ADDING TRACK: ${track.toString()}");
       // Disable audio output
       // track.applyConstraints({"deviceId": null});
@@ -75,7 +75,7 @@ class Signaling {
     await peerConnection!.setRemoteDescription(desc);
   }
 
-  Future<void> joinRoom(String serverIp, RTCVideoRenderer remoteRenderer) async {
+  Future<void> joinRoom(String serverIp, RTCVideoRenderer remoteRenderer, {bool audioOnly = false}) async {
     client = Client(
       hostname: serverIp,
       port: 4040,
@@ -103,7 +103,7 @@ class Signaling {
     };
 
     peerConnection!.addTransceiver(
-      kind: RTCRtpMediaType.RTCRtpMediaTypeAudio,
+      kind: audioOnly ? RTCRtpMediaType.RTCRtpMediaTypeAudio : RTCRtpMediaType.RTCRtpMediaTypeVideo,
       init: RTCRtpTransceiverInit(
         direction: TransceiverDirection.RecvOnly,
       ),
@@ -124,22 +124,26 @@ class Signaling {
     await peerConnection!.setRemoteDescription(desc);
   }
 
-  Future<void> openUserMedia(
-    RTCVideoRenderer localVideo,
-    RTCVideoRenderer remoteVideo,
-  ) async {
-    var stream = await navigator.mediaDevices.getUserMedia({'video': false, 'audio': true});
+  Future<void> openUserMedia(RTCVideoRenderer localVideo, {bool audioOnly = false}) async {
+    var stream = await navigator.mediaDevices.getUserMedia({'video': !audioOnly, 'audio': true});
 
-    // localVideo.srcObject = stream;
+    localVideo.srcObject = stream;
     localStream = stream;
 
     // remoteVideo.srcObject = await createLocalMediaStream('key');
   }
 
-  Future<void> hangUp(RTCVideoRenderer localVideo) async {
+  Future<void> hangUp(RTCVideoRenderer localVideo, RTCVideoRenderer remoteVideo) async {
     if (isBroadcaster) {
       if (localVideo.srcObject != null) {
         List<MediaStreamTrack> tracks = localVideo.srcObject!.getTracks();
+        for (var track in tracks) {
+          track.stop();
+        }
+      }
+    } else {
+      if (remoteVideo.srcObject != null) {
+        List<MediaStreamTrack> tracks = remoteVideo.srcObject!.getTracks();
         for (var track in tracks) {
           track.stop();
         }
@@ -148,6 +152,9 @@ class Signaling {
 
     if (remoteStream != null) {
       remoteStream!.getTracks().forEach((track) => track.stop());
+    }
+    if (localStream != null) {
+      localStream!.getTracks().forEach((track) => track.stop());
     }
     if (peerConnection != null) peerConnection!.close();
 
