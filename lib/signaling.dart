@@ -9,6 +9,7 @@ import 'package:liveguide/network/server.dart';
 typedef StreamStateCallback = void Function(MediaStream stream);
 typedef ConnectionStateCallback = void Function(RTCPeerConnectionState stream);
 typedef ErrorCallback = void Function(String error);
+typedef ICEGatheringCallback = void Function(RTCIceGatheringState state);
 
 class Signaling {
   Map<String, dynamic> configuration = {
@@ -26,6 +27,7 @@ class Signaling {
   String? currentRoomText;
   StreamStateCallback? onAddRemoteStream;
   ConnectionStateCallback? onConnectionState;
+  ICEGatheringCallback? onICEGatheringState;
   Server? server;
   Client? client;
   bool isBroadcaster = false;
@@ -48,12 +50,21 @@ class Signaling {
     }
 
     peerConnection = await createPeerConnection(configuration);
+
+    // send ice candidate to server
+    peerConnection!.onIceCandidate = (RTCIceCandidate candidate) {
+      server!.storeICECandidate(candidate);
+    };
+
+    // listen for ice candidate from server
+
     peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
       onConnectionState!(state);
     };
-    peerConnection!.onSignalingState = (RTCSignalingState state) {
-      log('CLIENT: ON SIGNALING STATE: $state.toString()');
+    peerConnection!.onIceGatheringState = (RTCIceGatheringState state) {
+      onICEGatheringState!(state);
     };
+
     peerConnection!.onRenegotiationNeeded = () async {
       log('ON RE-NEGOTIATION : SERVER');
 
@@ -90,18 +101,24 @@ class Signaling {
       await setSdpClient(sdp);
     });
 
+    client!.onICEReceived = ((RTCIceCandidate candidate) async {
+      log("ICE - ${candidate.toMap()}");
+
+      peerConnection!.addCandidate(candidate);
+    });
+
     peerConnection = await createPeerConnection(configuration);
+
     peerConnection!.onConnectionState = (RTCPeerConnectionState state) {
       onConnectionState!(state);
     };
-    peerConnection!.onSignalingState = (RTCSignalingState state) {
-      log('CLIENT: ON SIGNALING STATE: $state');
-    };
+
     remoteRenderer.srcObject = await createLocalMediaStream('key');
     peerConnection!.onTrack = (RTCTrackEvent event) {
       remoteStream = event.streams[0];
       onAddRemoteStream!(remoteStream!);
     };
+
     peerConnection!.onRenegotiationNeeded = () async {
       log('ON RE-NEGOTIATION : CLIENT');
       await handleNegotiationNeededEventClient();
@@ -135,6 +152,9 @@ class Signaling {
 
   Future<void> openUserMedia(RTCVideoRenderer localVideo, {bool audioOnly = false}) async {
     var stream = await navigator.mediaDevices.getUserMedia({'video': !audioOnly, 'audio': true});
+    // stream.getTracks().forEach((track) {
+    //   track.enableSpeakerphone(false);
+    // });
 
     localVideo.srcObject = stream;
     localStream = stream;

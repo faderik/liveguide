@@ -21,12 +21,15 @@ class MyHomePageState extends State<MyHomePage> {
   AccessPoint? ap = AccessPoint();
   TextEditingController ssidController = TextEditingController(text: '');
   TextEditingController pwdController = TextEditingController(text: '');
-  TextEditingController ipController = TextEditingController(text: '');
+  TextEditingController ipController = TextEditingController(text: '192.168.1.5');
 
   // String mode = 'ap';
   String mode = 'wlan';
   bool audioOnly = false;
   // bool audioOnly = true;
+
+  bool gathering = true;
+  bool loadingSdp = false;
 
   @override
   void initState() {
@@ -43,7 +46,20 @@ class MyHomePageState extends State<MyHomePage> {
     signaling.onConnectionState = ((RTCPeerConnectionState state) {
       log("ON CONNECTION STATE");
 
+      if (state == RTCPeerConnectionState.RTCPeerConnectionStateConnecting) {
+        loadingSdp = false;
+      }
+
       signaling.connectionStatus = state.toString();
+      setState(() {});
+    });
+
+    signaling.onICEGatheringState = ((RTCIceGatheringState state) {
+      if (state == RTCIceGatheringState.RTCIceGatheringStateComplete) {
+        gathering = false;
+        log("ICE GATHERING COMPLETE");
+      }
+
       setState(() {});
     });
 
@@ -102,13 +118,13 @@ class MyHomePageState extends State<MyHomePage> {
     //   showMsgDialog("Failed to connect to Access Point");
     //   return;
     // }
-
     if (ipController.text == '') {
       showMsgDialog("Please enter IP address");
       return;
     }
 
     try {
+      loadingSdp = true;
       signaling.joinRoom(ipController.text, _remoteRenderer, audioOnly: audioOnly);
       setState(() {});
     } catch (e) {
@@ -120,10 +136,12 @@ class MyHomePageState extends State<MyHomePage> {
     await signaling.hangUp(_localRenderer, _remoteRenderer);
     await ap!.stop();
 
-    ipController.text = '';
+    ipController.text = '192.168.1.5';
     _localRenderer.srcObject = null;
     _remoteRenderer.srcObject = null;
     isBroadcaster = false;
+    gathering = true;
+    loadingSdp = false;
 
     setState(() {});
   }
@@ -238,26 +256,35 @@ class MyHomePageState extends State<MyHomePage> {
                         )
                       : const SizedBox(),
                   !isBroadcaster ? const SizedBox(height: 10) : const SizedBox(),
-                  TextFormField(
-                    enabled: isBroadcaster ? false : true,
-                    controller: ipController,
-                    decoration: const InputDecoration(
-                      contentPadding: EdgeInsets.all(10),
-                      label: Text("IP Address"),
-                      floatingLabelBehavior: FloatingLabelBehavior.always,
-                      border: OutlineInputBorder(
-                        borderSide: BorderSide(color: Colors.black),
-                        borderRadius: BorderRadius.all(Radius.circular(5)),
-                      ),
-                      hintText: "Enter IP Address",
-                      hintStyle: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                      ),
-                    ),
-                    textAlign: TextAlign.center,
-                    cursorColor: Colors.black,
-                  ),
+                  (gathering && isBroadcaster)
+                      ? Center(
+                          child: Container(
+                            margin: const EdgeInsets.all(10),
+                            height: 20,
+                            width: 20,
+                            child: const CircularProgressIndicator(),
+                          ),
+                        )
+                      : TextFormField(
+                          enabled: isBroadcaster ? false : true,
+                          controller: ipController,
+                          decoration: const InputDecoration(
+                            contentPadding: EdgeInsets.all(10),
+                            label: Text("IP Address"),
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(
+                              borderSide: BorderSide(color: Colors.black),
+                              borderRadius: BorderRadius.all(Radius.circular(5)),
+                            ),
+                            hintText: "Enter IP Address",
+                            hintStyle: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 14,
+                            ),
+                          ),
+                          textAlign: TextAlign.center,
+                          cursorColor: Colors.black,
+                        ),
                   signaling.isConnectionActive()
                       ? Row(
                           children: [
@@ -305,13 +332,21 @@ class MyHomePageState extends State<MyHomePage> {
                                     style: ButtonStyle(
                                       backgroundColor: MaterialStateProperty.all(Colors.green[200]),
                                     ),
-                                    onPressed: () async {
-                                      await joinRoom();
-                                    },
-                                    child: const Text(
-                                      "Join Room",
-                                      style: TextStyle(color: Colors.black),
-                                    ),
+                                    onPressed: loadingSdp
+                                        ? null
+                                        : () async {
+                                            await joinRoom();
+                                          },
+                                    child: loadingSdp
+                                        ? const SizedBox(
+                                            width: 15,
+                                            height: 15,
+                                            child: CircularProgressIndicator(),
+                                          )
+                                        : const Text(
+                                            "Join Room",
+                                            style: TextStyle(color: Colors.black),
+                                          ),
                                   ),
                                 ),
                               ],
